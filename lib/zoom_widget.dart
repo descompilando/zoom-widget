@@ -18,24 +18,26 @@ class Zoom extends StatefulWidget {
   final bool enableScroll;
   final double zoomSensibility;
   final bool doubleTapZoom;
+  final bool disableZoom;
 
   Zoom(
       {Key key,
-      this.width,
-      this.height,
-      this.child,
-      this.onPositionUpdate,
-      this.onScaleUpdate,
-      this.backgroundColor = Colors.grey,
-      this.canvasColor = Colors.white,
-      this.scrollWeight = 7.0,
-      this.opacityScrollBars = 0.5,
-      this.colorScrollBars = Colors.black,
-      this.centerOnScale = true,
-      this.initZoom = 1.0,
-      this.enableScroll = true,
-      this.zoomSensibility = 1.0,
-      this.doubleTapZoom = true})
+        this.width,
+        this.height,
+        this.child,
+        this.onPositionUpdate,
+        this.onScaleUpdate,
+        this.backgroundColor = Colors.grey,
+        this.canvasColor = Colors.white,
+        this.scrollWeight = 7.0,
+        this.opacityScrollBars = 0.5,
+        this.colorScrollBars = Colors.black,
+        this.centerOnScale = true,
+        this.initZoom = 1.0,
+        this.enableScroll = true,
+        this.zoomSensibility = 1.0,
+        this.doubleTapZoom = true,
+        this.disableZoom = false})
       : super(key: key);
 
   _ZoomState createState() => _ZoomState();
@@ -96,11 +98,11 @@ class _ZoomState extends State<Zoom> with TickerProviderStateMixin {
           widget.onScaleUpdate(scale, zoom);
         }
         if( widget.onPositionUpdate!=null){
-           widget.onPositionUpdate(Offset(
-            (auxLeft + localLeft + centerLeft + scaleLeft) * -1,
-            (auxTop + localTop + centerTop + scaleTop) * -1));
+          widget.onPositionUpdate(Offset(
+              (auxLeft + localLeft + centerLeft + scaleLeft) * -1,
+              (auxTop + localTop + centerTop + scaleTop) * -1));
         }
-       
+
         endEscale(globalConstraints);
       }
     });
@@ -128,7 +130,7 @@ class _ZoomState extends State<Zoom> with TickerProviderStateMixin {
 
     if (((widget.width * scale) > constraints.maxWidth) &&
         ((auxLeft + localLeft + centerLeft + scaleLeft) +
-                (widget.width * scale)) <
+            (widget.width * scale)) <
             constraints.maxWidth) {
       localLeft += constraints.maxWidth -
           ((auxLeft + localLeft + centerLeft + scaleLeft) +
@@ -162,7 +164,7 @@ class _ZoomState extends State<Zoom> with TickerProviderStateMixin {
   void scaleProcess(constraints) {
     Offset currentMidlePoint = Offset(
         ((auxLeft + localLeft + centerLeft) * -1 + midlePoint.dx) *
-                (1 / scale) -
+            (1 / scale) -
             localLeft,
         ((auxTop + localTop + centerTop) * -1 + midlePoint.dy) * (1 / scale));
 
@@ -258,7 +260,7 @@ class _ZoomState extends State<Zoom> with TickerProviderStateMixin {
                   : constraints.maxHeight / widget.height);
           initOrientation = true;
           portrait =
-              (constraints.maxHeight > constraints.maxWidth) ? true : false;
+          (constraints.maxHeight > constraints.maxWidth) ? true : false;
 
           if (widget.centerOnScale) {
             if (portrait) {
@@ -272,15 +274,15 @@ class _ZoomState extends State<Zoom> with TickerProviderStateMixin {
             }
           }
           if(widget.onScaleUpdate!=null){
-             widget.onScaleUpdate(scale, widget.initZoom);
+            widget.onScaleUpdate(scale, widget.initZoom);
           }
-       
+
           if(widget.onPositionUpdate!=null){
             widget.onPositionUpdate(Offset(
-            (auxLeft + localLeft + centerLeft + scaleLeft) * -1,
-            (auxTop + localTop + centerTop + scaleTop) * -1));
+                (auxLeft + localLeft + centerLeft + scaleLeft) * -1,
+                (auxTop + localTop + centerTop + scaleTop) * -1));
           }
-        
+
         }
 
         if (!portrait && constraints.maxHeight > constraints.maxWidth) {
@@ -295,18 +297,91 @@ class _ZoomState extends State<Zoom> with TickerProviderStateMixin {
           scale = 1.0;
         }
 
-        return RawGestureDetector(
+        Widget drawContent = Container(
+          width: constraints.maxWidth,
+          height: constraints.maxHeight,
+          color: widget.backgroundColor,
+          child: Stack(
+            children: <Widget>[
+              Positioned(
+                top: auxTop + localTop + centerTop + scaleTop,
+                left: auxLeft + localLeft + centerLeft + scaleLeft,
+                child: Transform.scale(
+                  scale: scale,
+                  alignment: Alignment.topLeft,
+                  child: Container(
+                    decoration: BoxDecoration(
+                        color: widget.canvasColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black45,
+                            blurRadius:
+                            20.0, // has the effect of softening the shadow
+                            spreadRadius:
+                            5.0, // has the effect of extending the shadow
+                            offset: Offset(
+                              10.0, // horizontal, move right 10
+                              10.0, // vertical, move down 10
+                            ),
+                          )
+                        ]),
+                    width: widget.width,
+                    height: widget.height,
+                    child: widget.child,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: constraints.maxHeight - widget.scrollWeight,
+                left: -(auxLeft + localLeft + centerLeft + scaleLeft) /
+                    ((widget.width * scale) / constraints.maxWidth),
+                child: Opacity(
+                  opacity: (widget.width * scale <= constraints.maxWidth ||
+                      !widget.enableScroll)
+                      ? 0
+                      : widget.opacityScrollBars,
+                  child: Container(
+                    height: widget.scrollWeight,
+                    width: constraints.maxWidth /
+                        ((widget.width * scale) / constraints.maxWidth),
+                    color: widget.colorScrollBars,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: -(auxTop + localTop + centerTop + scaleTop) /
+                    ((widget.height * scale) / constraints.maxHeight),
+                left: constraints.maxWidth - widget.scrollWeight,
+                child: Opacity(
+                  opacity:
+                  (widget.height * scale <= constraints.maxHeight ||
+                      !widget.enableScroll)
+                      ? 0
+                      : widget.opacityScrollBars,
+                  child: Container(
+                    width: widget.scrollWeight,
+                    height: constraints.maxHeight /
+                        ((widget.height * scale) / constraints.maxHeight),
+                    color: widget.colorScrollBars,
+                  ),
+                ),
+              )
+            ],
+          ),
+        );
+
+        return widget.disableZoom ? drawContent : RawGestureDetector(
           gestures: {
             MultiTouchGestureRecognizer: GestureRecognizerFactoryWithHandlers<
                 MultiTouchGestureRecognizer>(
-              () => MultiTouchGestureRecognizer(),
-              (MultiTouchGestureRecognizer instance) {
+                  () => MultiTouchGestureRecognizer(),
+                  (MultiTouchGestureRecognizer instance) {
                 instance.onSingleTap = (point) {
                   if (widget.doubleTapZoom) {
                     midlePoint = point;
                     relativeMidlePoint = Offset(
                         ((auxLeft + localLeft + centerLeft) * -1 +
-                                midlePoint.dx) *
+                            midlePoint.dx) *
                             (1 / scale),
                         ((auxTop + localTop + centerTop) * -1 + midlePoint.dy) *
                             (1 / scale));
@@ -318,7 +393,7 @@ class _ZoomState extends State<Zoom> with TickerProviderStateMixin {
 
                   relativeMidlePoint = Offset(
                       ((auxLeft + localLeft + centerLeft) * -1 +
-                              midlePoint.dx) *
+                          midlePoint.dx) *
                           (1 / scale),
                       ((auxTop + localTop + centerTop) * -1 + midlePoint.dy) *
                           (1 / scale));
@@ -330,17 +405,17 @@ class _ZoomState extends State<Zoom> with TickerProviderStateMixin {
             color: Colors.transparent,
             child: InkWell(
               onDoubleTap: () {
-                  if (widget.doubleTapZoom) {
-                    doubleTapScale = scale;
+                if (widget.doubleTapZoom) {
+                  doubleTapScale = scale;
 
-                    if (scale >= 0.99) {
-                      doubleTapDown = false;
-                    } else {
-                      doubleTapDown = true;
-                    }
-                    scaleAnimation.forward(from: 0.0);
+                  if (scale >= 0.99) {
+                    doubleTapDown = false;
+                  } else {
+                    doubleTapDown = true;
                   }
-                },
+                  scaleAnimation.forward(from: 0.0);
+                }
+              },
               child: GestureDetector(
                 onScaleStart: (details) {
                   downTouchLeft = details.focalPoint.dx * (1 / scale);
@@ -386,10 +461,10 @@ class _ZoomState extends State<Zoom> with TickerProviderStateMixin {
                       scaleFixPosition(constraints);
 
                       if( widget.onScaleUpdate!=null){
-                          widget.onScaleUpdate(scale, zoom);
+                        widget.onScaleUpdate(scale, zoom);
                       }
 
-                      
+
                       changeScale = details.scale;
                     } else {
                       if (details.focalPoint.dy > changeTop &&
@@ -419,85 +494,14 @@ class _ZoomState extends State<Zoom> with TickerProviderStateMixin {
 
                   if(widget.onPositionUpdate!=null){
                     widget.onPositionUpdate(Offset(
-                      (auxLeft + localLeft + centerLeft + scaleLeft) * -1,
-                      (auxTop + localTop + centerTop + scaleTop) * -1));
+                        (auxLeft + localLeft + centerLeft + scaleLeft) * -1,
+                        (auxTop + localTop + centerTop + scaleTop) * -1));
                   }
                 },
                 onScaleEnd: (details) {
                   endEscale(constraints);
                 },
-                child: Container(
-                  width: constraints.maxWidth,
-                  height: constraints.maxHeight,
-                  color: widget.backgroundColor,
-                  child: Stack(
-                    children: <Widget>[
-                      Positioned(
-                        top: auxTop + localTop + centerTop + scaleTop,
-                        left: auxLeft + localLeft + centerLeft + scaleLeft,
-                        child: Transform.scale(
-                          scale: scale,
-                          alignment: Alignment.topLeft,
-                          child: Container(
-                            decoration: BoxDecoration(
-                                color: widget.canvasColor,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black45,
-                                    blurRadius:
-                                        20.0, // has the effect of softening the shadow
-                                    spreadRadius:
-                                        5.0, // has the effect of extending the shadow
-                                    offset: Offset(
-                                      10.0, // horizontal, move right 10
-                                      10.0, // vertical, move down 10
-                                    ),
-                                  )
-                                ]),
-                            width: widget.width,
-                            height: widget.height,
-                            child: widget.child,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: constraints.maxHeight - widget.scrollWeight,
-                        left: -(auxLeft + localLeft + centerLeft + scaleLeft) /
-                            ((widget.width * scale) / constraints.maxWidth),
-                        child: Opacity(
-                          opacity: (widget.width * scale <= constraints.maxWidth ||
-                                  !widget.enableScroll)
-                              ? 0
-                              : widget.opacityScrollBars,
-                          child: Container(
-                            height: widget.scrollWeight,
-                            width: constraints.maxWidth /
-                                ((widget.width * scale) / constraints.maxWidth),
-                            color: widget.colorScrollBars,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: -(auxTop + localTop + centerTop + scaleTop) /
-                            ((widget.height * scale) / constraints.maxHeight),
-                        left: constraints.maxWidth - widget.scrollWeight,
-                        child: Opacity(
-                          opacity:
-                              (widget.height * scale <= constraints.maxHeight ||
-                                      !widget.enableScroll)
-                                  ? 0
-                                  : widget.opacityScrollBars,
-                          child: Container(
-                            width: widget.scrollWeight,
-                            height: constraints.maxHeight /
-                                ((widget.height * scale) / constraints.maxHeight),
-                            color: widget.colorScrollBars,
-                          ),
-                        ),
-                      )
-                    ],
-                  ),
-                ),
+                child: drawContent,
               ),
             ),
           ),
